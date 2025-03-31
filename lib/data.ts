@@ -1,21 +1,4 @@
-interface Bid {
-  id: string;
-  amount: number;
-  userId: string;
-  userName: string;
-  timestamp: Date;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  currentBid: number;
-  startingPrice: number;
-  endTime: Date;
-  imageUrl: string;
-  bids: Bid[];
-}
+import { Product } from "./actionUtils";
 
 export const products: Product[] = [
   {

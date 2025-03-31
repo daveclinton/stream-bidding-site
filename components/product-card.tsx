@@ -1,4 +1,5 @@
 "use client";
+
 import {
   Card,
   CardContent,
@@ -10,38 +11,23 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
-
-interface Bid {
-  id: string;
-  amount: number;
-  userId: string;
-  userName: string;
-  timestamp: Date;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  currentBid: number;
-  startingPrice: number;
-  endTime: Date;
-  imageUrl: string;
-  bids: Bid[];
-}
+import { JSX } from "react";
+import { Product } from "@/lib/actionUtils";
 
 interface ProductCardProps {
   product: Product;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({
+  product,
+}: ProductCardProps): JSX.Element {
   const router = useRouter();
 
   return (
     <Card className="overflow-hidden">
       <div className="relative h-48 w-full">
         <Image
-          src={product.imageUrl}
+          src={product.imageUrl || "/placeholder.svg"}
           alt={product.name}
           fill
           className="object-cover"

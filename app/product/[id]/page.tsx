@@ -1,5 +1,7 @@
+// pages/product/[id].tsx
 import { products } from "@/lib/data";
 import ProductDetail from "@/components/product-detail";
+import Script from "next/script";
 
 export function generateStaticParams() {
   return products.map((product) => ({
@@ -7,17 +9,13 @@ export function generateStaticParams() {
   }));
 }
 
-export default async function ProductPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const { id } = await params;
-  const product = products.find((p) => p.id === id);
-
-  if (!product) {
-    return <div>Product not found</div>;
-  }
-
-  return <ProductDetail initialProduct={product} />;
+export default async function ProductPage() {
+  return (
+    <>
+      <Script id="initial-products" strategy="beforeInteractive">
+        {`window.__INITIAL_PRODUCTS__ = ${JSON.stringify(products)};`}
+      </Script>
+      <ProductDetail />
+    </>
+  );
 }

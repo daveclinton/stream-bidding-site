@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useState, useEffect, useCallback } from "react";
+
+import { JSX, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import Image from "next/image";
 import {
@@ -13,10 +14,8 @@ import {
   ChannelHeader,
   MessageList,
   MessageInput,
-  useCreateChatClient,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
-import { Channel, Event } from "stream-chat";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -27,282 +26,49 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { useDebounce } from "use-debounce";
 
-interface Bid {
-  id: string;
-  amount: number;
-  userId: string;
-  userName: string;
-  timestamp: Date;
-}
+import { useParams } from "next/navigation";
+import { products as initialProducts } from "@/lib/data";
+import {
+  useAuctionStore,
+  useAuctionLogic,
+  apiKey,
+  Bid,
+} from "@/lib/actionUtils";
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  currentBid: number;
-  startingPrice: number;
-  endTime: Date;
-  imageUrl: string;
-  bids: Bid[];
-  minimumIncrement?: number;
-}
-
-interface ProductDetailProps {
-  initialProduct: Product;
-}
-
-export default function ProductDetail({ initialProduct }: ProductDetailProps) {
-  const [product, setProduct] = useState<Product>(initialProduct);
-  const [bidInput, setBidInput] = useState("");
-  const [debouncedBid] = useDebounce(bidInput, 300);
-  const [channel, setChannel] = useState<Channel | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [userData] = useState({
-    id: "user-42",
-    name: "Jane Smith",
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isBidding, setIsBidding] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<
-    "connected" | "disconnected" | "connecting"
-  >("connecting");
-  const [timeLeft, setTimeLeft] = useState<string>("");
-
-  const MINIMUM_INCREMENT = initialProduct.minimumIncrement || 10;
-  const apiKey = process.env.NEXT_PUBLIC_STREAM_KEY || "";
-
-  const tokenProvider = useCallback(() => {
-    if (token) {
-      return Promise.resolve(token);
-    }
-
-    return new Promise<string>((resolve) => {
-      const checkToken = setInterval(() => {
-        if (token) {
-          clearInterval(checkToken);
-          resolve(token);
-        }
-      }, 100);
-    });
-  }, [token]);
-
-  const chatClient = useCreateChatClient({
-    apiKey,
-    userData,
-    tokenOrProvider: tokenProvider,
-  });
+export default function ProductDetail(): JSX.Element {
+  const { id } = useParams();
+  const productId = Array.isArray(id) ? id[0] : id;
+  const { products, setProducts } = useAuctionStore();
 
   useEffect(() => {
-    let mounted = true;
-
-    const fetchToken = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch("/api/get-stream-token", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            userId: userData.id,
-            userName: userData.name,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (mounted) {
-          setToken(data.token);
-        }
-        console.log("Token fetched successfully:", data.token);
-      } catch (err) {
-        if (mounted) {
-          console.error("Failed to fetch token:", err);
-          toast.error("Failed to authenticate chat. Please refresh.");
-        }
-      } finally {
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchToken();
-    return () => {
-      mounted = false;
-    };
-  }, [userData]);
-
-  useEffect(() => {
-    if (!chatClient) return;
-
-    let channelCleanup: () => void;
-
-    const initChannel = async () => {
-      try {
-        const productChannel = chatClient.channel("messaging", product.id, {
-          name: `${product.name} Auction`,
-        });
-        await productChannel.watch();
-        setChannel(productChannel);
-
-        const listener = productChannel.on("message.new", (event: Event) => {
-          const messageText = event.message?.text;
-          if (messageText?.startsWith("Bid: $")) {
-            const amount = Number.parseInt(messageText.replace("Bid: $", ""));
-            if (!isNaN(amount) && amount > product.currentBid) {
-              setProduct((prev) => ({
-                ...prev,
-                currentBid: amount,
-                bids: [
-                  {
-                    id: event.message!.id,
-                    amount,
-                    userId: event.message!.user!.id,
-                    userName: event.message!.user!.name || "Unknown",
-                    timestamp: new Date(
-                      event.message!.created_at || Date.now()
-                    ),
-                  },
-                  ...prev.bids,
-                ],
-              }));
-            }
-          }
-        });
-        channelCleanup = () => {
-          listener.unsubscribe();
-          productChannel.stopWatching();
-        };
-      } catch (err) {
-        console.error("Failed to initialize channel:", err);
-        toast.error("Failed to load auction chat. Please refresh.");
-      }
-    };
-
-    initChannel();
-    return () => {
-      if (channelCleanup) channelCleanup();
-    };
-  }, [chatClient, product.id, product.name, product.currentBid]);
-
-  useEffect(() => {
-    if (!chatClient) return;
-
-    const handleConnectionChange = (event: Event) => {
-      setConnectionStatus(event.online ? "connected" : "disconnected");
-    };
-
-    chatClient.on("connection.changed", handleConnectionChange);
-
-    return () => {
-      chatClient.off("connection.changed", handleConnectionChange);
-    };
-  }, [chatClient]);
-
-  // Countdown timer
-  useEffect(() => {
-    const calculateTimeLeft = () => {
-      const now = new Date();
-      const difference = product.endTime.getTime() - now.getTime();
-
-      if (difference <= 0) {
-        return "Auction ended";
-      }
-
-      const days = Math.floor(difference / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-      );
-      const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((difference % (1000 * 60)) / 1000);
-
-      return `${days > 0 ? `${days}d ` : ""}${hours}h ${minutes}m ${seconds}s`;
-    };
-
-    setTimeLeft(calculateTimeLeft());
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [product.endTime]);
-
-  // Auto-reconnect if disconnected
-  useEffect(() => {
-    if (connectionStatus === "disconnected" && chatClient) {
-      const reconnectTimer = setTimeout(() => {
-        console.log("Attempting to reconnect...");
-        chatClient.connectUser(userData, token as string).catch((err) => {
-          console.error("Failed to reconnect:", err);
-          toast.error("Failed to reconnect. Please refresh the page.");
-        });
-      }, 5000); // Try to reconnect after 5 seconds
-
-      return () => clearTimeout(reconnectTimer);
+    if (products.length === 0) {
+      const serverProducts =
+        typeof window !== "undefined" && (window as any).__INITIAL_PRODUCTS__;
+      setProducts(serverProducts || initialProducts);
     }
-  }, [connectionStatus, chatClient, userData, token]);
+  }, [products, setProducts]);
 
-  const handleBid = async () => {
-    const amount = Number.parseInt(debouncedBid);
+  const {
+    product,
+    bidInput,
+    setBidInput,
+    channel,
+    chatClient,
+    isLoading,
+    isBidding,
+    showConfirm,
+    setShowConfirm,
+    connectionStatus,
+    timeLeft,
+    MINIMUM_INCREMENT,
+    handleBid,
+    confirmBid,
+  } = useAuctionLogic(productId);
 
-    // Check if auction has ended
-    if (product.endTime < new Date()) {
-      toast.error("This auction has already ended");
-      return;
-    }
-
-    // Validate bid amount
-    if (isNaN(amount)) {
-      toast.warning("Please enter a valid amount");
-      return;
-    }
-
-    // Check minimum bid
-    if (amount <= product.currentBid) {
-      toast.warning("Bid must be higher than the current bid");
-      return;
-    }
-
-    // Check minimum increment
-    if (amount < product.currentBid + MINIMUM_INCREMENT) {
-      toast.warning(
-        `Bid must be at least $${MINIMUM_INCREMENT} higher than current bid`
-      );
-      return;
-    }
-
-    setShowConfirm(true);
-  };
-
-  const confirmBid = async () => {
-    if (channel) {
-      try {
-        setIsBidding(true);
-        await channel.sendMessage({
-          text: `Bid: $${Number.parseInt(debouncedBid)}`,
-        });
-        setBidInput("");
-        toast.success(
-          `Bid of $${Number.parseInt(
-            debouncedBid
-          ).toLocaleString()} placed successfully!`
-        );
-      } catch (err) {
-        console.error("Failed to send bid:", err);
-        toast.error("Failed to place bid. Please try again.");
-      } finally {
-        setIsBidding(false);
-        setShowConfirm(false);
-      }
-    }
-  };
+  if (!product) {
+    return <div>Product not found</div>;
+  }
 
   if (!apiKey) {
     return <div>Error: Stream API key is not configured.</div>;
@@ -366,7 +132,9 @@ export default function ProductDetail({ initialProduct }: ProductDetailProps) {
             <Input
               type="number"
               value={bidInput}
-              onChange={(e) => setBidInput(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setBidInput(e.target.value)
+              }
               placeholder={`Enter bid amount (min. $${(
                 product.currentBid + MINIMUM_INCREMENT
               ).toLocaleString()})`}
@@ -416,7 +184,7 @@ export default function ProductDetail({ initialProduct }: ProductDetailProps) {
           <h2 className="text-xl font-bold mb-4">Auction Chat</h2>
           <div className="chat-status mb-2">
             Connection Status:
-            <span className={`ml-2 inline-flex items-center`}>
+            <span className="ml-2 inline-flex items-center">
               <span
                 className={`h-2 w-2 rounded-full mr-2 ${
                   connectionStatus === "connected"
@@ -447,7 +215,7 @@ export default function ProductDetail({ initialProduct }: ProductDetailProps) {
           <h2 className="text-xl font-bold mb-4">Bid History</h2>
           {product.bids.length > 0 ? (
             <div className="space-y-3 max-h-[300px] overflow-y-auto">
-              {product.bids.map((bid) => (
+              {product.bids.map((bid: Bid) => (
                 <div
                   key={bid.id}
                   className="flex justify-between items-center p-2 border-b"
@@ -473,7 +241,7 @@ export default function ProductDetail({ initialProduct }: ProductDetailProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirm Bid</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to place a bid of ${debouncedBid} on{" "}
+              Are you sure you want to place a bid of ${bidInput} on{" "}
               {product.name}?
             </AlertDialogDescription>
           </AlertDialogHeader>

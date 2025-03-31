@@ -1,7 +1,18 @@
-import { products } from "@/lib/data";
+"use client";
+import { JSX, useEffect } from "react";
 import ProductCard from "@/components/product-card";
+import { products as initialProducts } from "@/lib/data";
+import { useAuctionStore } from "@/lib/actionUtils";
 
-export default function Home() {
+export default function Home(): JSX.Element {
+  const { products, setProducts } = useAuctionStore();
+
+  useEffect(() => {
+    if (products.length === 0) {
+      setProducts(initialProducts);
+    }
+  }, [products, setProducts]);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-4xl font-bold mb-8">Featured Auctions</h1>
