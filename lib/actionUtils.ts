@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { create } from "zustand";
-import { persist } from "zustand/middleware"; // Import persist middleware
+import { persist } from "zustand/middleware";
 import { toast } from "sonner";
 import { Channel, Event } from "stream-chat";
 import { useCreateChatClient } from "stream-chat-react";
@@ -68,7 +68,6 @@ const dateReviver = (key: string, value: any): any => {
   return value;
 };
 
-// Modify the store to use persistence
 export const useAuctionStore = create<AuctionState>()(
   persist(
     (set) => ({
@@ -101,19 +100,12 @@ export const useAuctionStore = create<AuctionState>()(
     }),
     {
       name: "auction-storage",
-      // Exclude non-serializable values from persistence
       partialize: (state) => ({
         products: state.products,
         token: state.token,
-        // Don't persist these runtime state items
-        // bidInput: state.bidInput,
-        // isLoading: state.isLoading,
-        // isBidding: state.isBidding,
-        // showConfirm: state.showConfirm,
-        // connectionStatus: state.connectionStatus,
-        // timeLeft: state.timeLeft,
+        bidInput: state.bidInput,
+        timeLeft: state.timeLeft,
       }),
-      // Custom serialization/deserialization to handle Date objects
       storage: {
         getItem: (name) => {
           const str = localStorage.getItem(name);
@@ -198,6 +190,11 @@ export function useAuctionLogic(
   // Token fetching
   useEffect(() => {
     let mounted = true;
+    if (token) {
+      setIsLoading(false);
+      return;
+    }
+
     const fetchToken = async (): Promise<void> => {
       try {
         setIsLoading(true);
@@ -228,7 +225,7 @@ export function useAuctionLogic(
     return () => {
       mounted = false;
     };
-  }, [setToken, setIsLoading]);
+  }, [setToken, setIsLoading, token]);
 
   // Channel initialization
   useEffect(() => {
@@ -304,6 +301,7 @@ export function useAuctionLogic(
     return () => chatClient.off("connection.changed", handleConnectionChange);
   }, [chatClient, setConnectionStatus]);
 
+  // Time left calculation - only recalculate if timeLeft is empty or we need to refresh
   useEffect(() => {
     if (!product) return;
 
@@ -322,13 +320,20 @@ export function useAuctionLogic(
       return `${days > 0 ? `${days}d ` : ""}${hours}h ${minutes}m ${seconds}s`;
     };
 
-    setTimeLeft(calculateTimeLeft());
+    if (
+      !timeLeft ||
+      timeLeft === "Auction ended" ||
+      product.endTime < new Date()
+    ) {
+      setTimeLeft(calculateTimeLeft());
+    }
+
     const timer: NodeJS.Timeout = setInterval(
       () => setTimeLeft(calculateTimeLeft()),
       1000
     );
     return () => clearInterval(timer);
-  }, [product, setTimeLeft]);
+  }, [product, setTimeLeft, timeLeft]);
 
   useEffect(() => {
     if (connectionStatus === "disconnected" && chatClient && token) {
