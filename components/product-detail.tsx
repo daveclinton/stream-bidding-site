@@ -197,7 +197,7 @@ export default function ProductDetail(): JSX.Element {
               {connectionStatus}
             </span>
           </div>
-          {channel ? (
+          {channel && chatClient && chatClient.userID ? (
             <Chat client={chatClient}>
               <StreamChannel channel={channel}>
                 <Window>
@@ -208,7 +208,13 @@ export default function ProductDetail(): JSX.Element {
               </StreamChannel>
             </Chat>
           ) : (
-            <p>Loading chat...</p>
+            <div className="flex items-center justify-center h-64">
+              <p>
+                {connectionStatus === "connecting"
+                  ? "Connecting to chat..."
+                  : "Reconnecting to chat..."}
+              </p>
+            </div>
           )}
         </Card>
         <Card className="p-4 mt-6">

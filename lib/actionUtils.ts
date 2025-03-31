@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-
 "use client";
-
 import { create } from "zustand";
+import { persist } from "zustand/middleware"; // Import persist middleware
 import { toast } from "sonner";
 import { Channel, Event } from "stream-chat";
 import { useCreateChatClient } from "stream-chat-react";
@@ -60,33 +59,77 @@ interface AuctionState {
   setTimeLeft: (timeLeft: string) => void;
 }
 
-export const useAuctionStore = create<AuctionState>((set) => ({
-  products: [], // Initialize as empty array
-  bidInput: "",
-  channel: null,
-  token: null,
-  isLoading: true,
-  isBidding: false,
-  showConfirm: false,
-  connectionStatus: "connecting",
-  timeLeft: "",
-  setProducts: (products: Product[]) => set({ products }),
-  updateProduct: (productId: string, updates: Partial<Product>) =>
-    set((state) => ({
-      products: state.products.map((p) =>
-        p.id === productId ? { ...p, ...updates } : p
-      ),
-    })),
-  setBidInput: (bidInput: string) => set({ bidInput }),
-  setChannel: (channel: Channel | null) => set({ channel }),
-  setToken: (token: string | null) => set({ token }),
-  setIsLoading: (isLoading: boolean) => set({ isLoading }),
-  setIsBidding: (isBidding: boolean) => set({ isBidding }),
-  setShowConfirm: (showConfirm: boolean) => set({ showConfirm }),
-  setConnectionStatus: (status: "connected" | "disconnected" | "connecting") =>
-    set({ connectionStatus: status }),
-  setTimeLeft: (timeLeft: string) => set({ timeLeft }),
-}));
+// Add serialization helpers for date objects
+const dateReviver = (key: string, value: any): any => {
+  // Convert ISO date strings back to Date objects for specific keys
+  if (key === "endTime" || key === "timestamp") {
+    return new Date(value);
+  }
+  return value;
+};
+
+// Modify the store to use persistence
+export const useAuctionStore = create<AuctionState>()(
+  persist(
+    (set) => ({
+      products: [],
+      bidInput: "",
+      channel: null,
+      token: null,
+      isLoading: true,
+      isBidding: false,
+      showConfirm: false,
+      connectionStatus: "connecting",
+      timeLeft: "",
+      setProducts: (products: Product[]) => set({ products }),
+      updateProduct: (productId: string, updates: Partial<Product>) =>
+        set((state) => ({
+          products: state.products.map((p) =>
+            p.id === productId ? { ...p, ...updates } : p
+          ),
+        })),
+      setBidInput: (bidInput: string) => set({ bidInput }),
+      setChannel: (channel: Channel | null) => set({ channel }),
+      setToken: (token: string | null) => set({ token }),
+      setIsLoading: (isLoading: boolean) => set({ isLoading }),
+      setIsBidding: (isBidding: boolean) => set({ isBidding }),
+      setShowConfirm: (showConfirm: boolean) => set({ showConfirm }),
+      setConnectionStatus: (
+        status: "connected" | "disconnected" | "connecting"
+      ) => set({ connectionStatus: status }),
+      setTimeLeft: (timeLeft: string) => set({ timeLeft }),
+    }),
+    {
+      name: "auction-storage",
+      // Exclude non-serializable values from persistence
+      partialize: (state) => ({
+        products: state.products,
+        token: state.token,
+        // Don't persist these runtime state items
+        // bidInput: state.bidInput,
+        // isLoading: state.isLoading,
+        // isBidding: state.isBidding,
+        // showConfirm: state.showConfirm,
+        // connectionStatus: state.connectionStatus,
+        // timeLeft: state.timeLeft,
+      }),
+      // Custom serialization/deserialization to handle Date objects
+      storage: {
+        getItem: (name) => {
+          const str = localStorage.getItem(name);
+          if (!str) return null;
+          return JSON.parse(str, dateReviver);
+        },
+        setItem: (name, value) => {
+          localStorage.setItem(name, JSON.stringify(value));
+        },
+        removeItem: (name) => {
+          localStorage.removeItem(name);
+        },
+      },
+    }
+  )
+);
 
 interface AuctionLogicReturn {
   product: Product;
@@ -189,53 +232,56 @@ export function useAuctionLogic(
 
   // Channel initialization
   useEffect(() => {
-    if (!chatClient) return;
+    if (!chatClient || !productId || !product) return;
     let channelCleanup: (() => void) | undefined;
 
     const initChannel = async (): Promise<void> => {
       try {
-        const productChannel: Channel = chatClient.channel(
-          "messaging",
-          product.id,
-          {
-            name: `${product.name} Auction`,
-          }
-        );
-        await productChannel.watch();
-        setChannel(productChannel);
+        // Only create channel if we have a valid client and no current channel
+        if (chatClient.userID) {
+          const productChannel: Channel = chatClient.channel(
+            "messaging",
+            productId,
+            {
+              name: `${product.name} Auction`,
+            }
+          );
+          await productChannel.watch();
+          setChannel(productChannel);
 
-        const listener = productChannel.on(
-          "message.new",
-          (event: Event): void => {
-            const messageText: string | undefined = event.message?.text;
-            if (messageText?.startsWith("Bid: $")) {
-              const amount: number = Number.parseInt(
-                messageText.replace("Bid: $", "")
-              );
-              if (!isNaN(amount) && amount > product.currentBid) {
-                updateProduct(product.id, {
-                  currentBid: amount,
-                  bids: [
-                    {
-                      id: event.message!.id,
-                      amount,
-                      userId: event.message!.user!.id,
-                      userName: event.message!.user!.name || "Unknown",
-                      timestamp: new Date(
-                        event.message!.created_at || Date.now()
-                      ),
-                    },
-                    ...product.bids,
-                  ],
-                });
+          const listener = productChannel.on(
+            "message.new",
+            (event: Event): void => {
+              const messageText: string | undefined = event.message?.text;
+              if (messageText?.startsWith("Bid: $")) {
+                const amount: number = Number.parseInt(
+                  messageText.replace("Bid: $", "")
+                );
+                if (!isNaN(amount) && amount > product.currentBid) {
+                  updateProduct(product.id, {
+                    currentBid: amount,
+                    bids: [
+                      {
+                        id: event.message!.id,
+                        amount,
+                        userId: event.message!.user!.id,
+                        userName: event.message!.user!.name || "Unknown",
+                        timestamp: new Date(
+                          event.message!.created_at || Date.now()
+                        ),
+                      },
+                      ...product.bids,
+                    ],
+                  });
+                }
               }
             }
-          }
-        );
-        channelCleanup = (): void => {
-          listener.unsubscribe();
-          productChannel.stopWatching();
-        };
+          );
+          channelCleanup = (): void => {
+            listener.unsubscribe();
+            productChannel.stopWatching();
+          };
+        }
       } catch (err: unknown) {
         console.error("Failed to initialize channel:", err);
         toast.error("Failed to load auction chat. Please refresh.");
@@ -245,18 +291,10 @@ export function useAuctionLogic(
     initChannel();
     return () => {
       if (channelCleanup) channelCleanup();
+      setChannel(null);
     };
-  }, [
-    chatClient,
-    product?.id,
-    product?.name,
-    product?.currentBid,
-    product?.bids,
-    setChannel,
-    updateProduct,
-  ]);
+  }, [chatClient, productId, product, setChannel, updateProduct]);
 
-  // Connection status
   useEffect(() => {
     if (!chatClient) return;
     const handleConnectionChange = (event: Event): void => {
@@ -266,11 +304,12 @@ export function useAuctionLogic(
     return () => chatClient.off("connection.changed", handleConnectionChange);
   }, [chatClient, setConnectionStatus]);
 
-  // Time left calculation
   useEffect(() => {
+    if (!product) return;
+
     const calculateTimeLeft = (): string => {
       const now: Date = new Date();
-      const difference: number = product?.endTime.getTime() - now.getTime();
+      const difference: number = product.endTime.getTime() - now.getTime();
       if (difference <= 0) return "Auction ended";
       const days: number = Math.floor(difference / (1000 * 60 * 60 * 24));
       const hours: number = Math.floor(
@@ -289,14 +328,29 @@ export function useAuctionLogic(
       1000
     );
     return () => clearInterval(timer);
-  }, [product?.endTime, setTimeLeft]);
+  }, [product, setTimeLeft]);
 
-  // Reconnection logic
   useEffect(() => {
-    if (connectionStatus === "disconnected" && chatClient) {
+    if (connectionStatus === "disconnected" && chatClient && token) {
+      setChannel(null);
+
       const reconnectTimer: NodeJS.Timeout = setTimeout(() => {
         chatClient
-          .connectUser(userData, token as string)
+          .connectUser(userData, token)
+          .then(() => {
+            if (productId && product) {
+              const productChannel: Channel = chatClient.channel(
+                "messaging",
+                productId,
+                {
+                  name: `${product.name} Auction`,
+                }
+              );
+              return productChannel.watch().then(() => {
+                setChannel(productChannel);
+              });
+            }
+          })
           .catch((err: unknown) => {
             console.error("Failed to reconnect:", err);
             toast.error("Failed to reconnect. Please refresh the page.");
@@ -304,9 +358,11 @@ export function useAuctionLogic(
       }, 5000);
       return () => clearTimeout(reconnectTimer);
     }
-  }, [connectionStatus, chatClient, token]);
+  }, [connectionStatus, chatClient, token, productId, product, setChannel]);
 
   const handleBid = async (): Promise<void> => {
+    if (!product) return;
+
     const amount: number = Number.parseInt(debouncedBid);
     if (product.endTime < new Date()) {
       toast.error("This auction has already ended");
@@ -330,7 +386,7 @@ export function useAuctionLogic(
   };
 
   const confirmBid = async (): Promise<void> => {
-    if (channel) {
+    if (channel && channel.state.read) {
       try {
         setIsBidding(true);
         await channel.sendMessage({
@@ -349,6 +405,9 @@ export function useAuctionLogic(
         setIsBidding(false);
         setShowConfirm(false);
       }
+    } else {
+      toast.error("Chat connection lost. Please refresh the page.");
+      setShowConfirm(false);
     }
   };
 
