@@ -2,7 +2,7 @@
 import { JSX, useEffect } from "react";
 import ProductCard from "@/components/product-card";
 import { products as initialProducts } from "@/lib/data";
-import { useAuctionStore } from "@/lib/actionUtils";
+import { useAuctionStore } from "@/store/auctionStore";
 
 export default function Home(): JSX.Element {
   const { products, setProducts } = useAuctionStore();

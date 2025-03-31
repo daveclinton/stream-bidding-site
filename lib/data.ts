@@ -1,4 +1,4 @@
-import { Product } from "./actionUtils";
+import { Product } from "@/store/auctionStore";
 
 export const products: Product[] = [
   {

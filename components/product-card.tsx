@@ -12,7 +12,7 @@ import { formatDistanceToNow } from "date-fns";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { JSX } from "react";
-import { Product } from "@/lib/actionUtils";
+import { Product } from "@/store/auctionStore";
 
 interface ProductCardProps {
   product: Product;

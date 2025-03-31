@@ -29,12 +29,8 @@ import {
 
 import { useParams } from "next/navigation";
 import { products as initialProducts } from "@/lib/data";
-import {
-  useAuctionStore,
-  useAuctionLogic,
-  apiKey,
-  Bid,
-} from "@/lib/actionUtils";
+import { useAuctionLogic, apiKey } from "@/lib/actionUtils";
+import { Bid, useAuctionStore } from "@/store/auctionStore";
 
 export default function ProductDetail(): JSX.Element {
   const { id } = useParams();

@@ -1,127 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+/* hooks/useAuctionLogic.ts */
 "use client";
-import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { useEffect, useCallback } from "react";
+import { useDebounce } from "use-debounce";
 import { toast } from "sonner";
 import { Channel, Event } from "stream-chat";
 import { useCreateChatClient } from "stream-chat-react";
-import { useDebounce } from "use-debounce";
-import { useEffect, useCallback } from "react";
-
-export interface Bid {
-  id: string;
-  amount: number;
-  userId: string;
-  userName: string;
-  timestamp: Date;
-}
-
-export interface Product {
-  id: string;
-  name: string;
-  description: string;
-  currentBid: number;
-  startingPrice: number;
-  endTime: Date;
-  imageUrl: string;
-  bids: Bid[];
-  minimumIncrement?: number;
-}
-
-export const userData: { id: string; name: string } = {
-  id: "user-42",
-  name: "Jane Smith",
-};
+import { Product, useAuctionStore } from "../store/auctionStore";
 
 export const apiKey: string = process.env.NEXT_PUBLIC_STREAM_KEY || "";
-
-interface AuctionState {
-  products: Product[];
-  bidInput: string;
-  channel: Channel | null;
-  token: string | null;
-  isLoading: boolean;
-  isBidding: boolean;
-  showConfirm: boolean;
-  connectionStatus: "connected" | "disconnected" | "connecting";
-  timeLeft: string;
-  setProducts: (products: Product[]) => void;
-  updateProduct: (productId: string, updates: Partial<Product>) => void;
-  setBidInput: (bidInput: string) => void;
-  setChannel: (channel: Channel | null) => void;
-  setToken: (token: string | null) => void;
-  setIsLoading: (isLoading: boolean) => void;
-  setIsBidding: (isBidding: boolean) => void;
-  setShowConfirm: (showConfirm: boolean) => void;
-  setConnectionStatus: (
-    status: "connected" | "disconnected" | "connecting"
-  ) => void;
-  setTimeLeft: (timeLeft: string) => void;
-}
-
-// Add serialization helpers for date objects
-const dateReviver = (key: string, value: any): any => {
-  // Convert ISO date strings back to Date objects for specific keys
-  if (key === "endTime" || key === "timestamp") {
-    return new Date(value);
-  }
-  return value;
-};
-
-export const useAuctionStore = create<AuctionState>()(
-  persist(
-    (set) => ({
-      products: [],
-      bidInput: "",
-      channel: null,
-      token: null,
-      isLoading: true,
-      isBidding: false,
-      showConfirm: false,
-      connectionStatus: "connecting",
-      timeLeft: "",
-      setProducts: (products: Product[]) => set({ products }),
-      updateProduct: (productId: string, updates: Partial<Product>) =>
-        set((state) => ({
-          products: state.products.map((p) =>
-            p.id === productId ? { ...p, ...updates } : p
-          ),
-        })),
-      setBidInput: (bidInput: string) => set({ bidInput }),
-      setChannel: (channel: Channel | null) => set({ channel }),
-      setToken: (token: string | null) => set({ token }),
-      setIsLoading: (isLoading: boolean) => set({ isLoading }),
-      setIsBidding: (isBidding: boolean) => set({ isBidding }),
-      setShowConfirm: (showConfirm: boolean) => set({ showConfirm }),
-      setConnectionStatus: (
-        status: "connected" | "disconnected" | "connecting"
-      ) => set({ connectionStatus: status }),
-      setTimeLeft: (timeLeft: string) => set({ timeLeft }),
-    }),
-    {
-      name: "auction-storage",
-      partialize: (state) => ({
-        products: state.products,
-        token: state.token,
-        bidInput: state.bidInput,
-        timeLeft: state.timeLeft,
-      }),
-      storage: {
-        getItem: (name) => {
-          const str = localStorage.getItem(name);
-          if (!str) return null;
-          return JSON.parse(str, dateReviver);
-        },
-        setItem: (name, value) => {
-          localStorage.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => {
-          localStorage.removeItem(name);
-        },
-      },
-    }
-  )
-);
 
 interface AuctionLogicReturn {
   product: Product;
@@ -154,6 +41,7 @@ export function useAuctionLogic(
     showConfirm,
     connectionStatus,
     timeLeft,
+    currentUser,
     updateProduct,
     setBidInput,
     setChannel,
@@ -183,17 +71,13 @@ export function useAuctionLogic(
 
   const chatClient = useCreateChatClient({
     apiKey,
-    userData,
+    userData: currentUser || { id: "", name: "" },
     tokenOrProvider: tokenProvider,
   });
 
-  // Token fetching
   useEffect(() => {
+    if (!currentUser) return;
     let mounted = true;
-    if (token) {
-      setIsLoading(false);
-      return;
-    }
 
     const fetchToken = async (): Promise<void> => {
       try {
@@ -202,8 +86,8 @@ export function useAuctionLogic(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            userId: userData.id,
-            userName: userData.name,
+            userId: currentUser.id,
+            userName: currentUser.name,
           }),
         });
 
@@ -221,20 +105,23 @@ export function useAuctionLogic(
       }
     };
 
-    fetchToken();
+    if (!token) {
+      fetchToken();
+    } else {
+      setIsLoading(false);
+    }
+
     return () => {
       mounted = false;
     };
-  }, [setToken, setIsLoading, token]);
+  }, [setToken, setIsLoading, token, currentUser]);
 
-  // Channel initialization
   useEffect(() => {
-    if (!chatClient || !productId || !product) return;
+    if (!chatClient || !productId || !product || !currentUser) return;
     let channelCleanup: (() => void) | undefined;
 
     const initChannel = async (): Promise<void> => {
       try {
-        // Only create channel if we have a valid client and no current channel
         if (chatClient.userID) {
           const productChannel: Channel = chatClient.channel(
             "messaging",
@@ -290,7 +177,7 @@ export function useAuctionLogic(
       if (channelCleanup) channelCleanup();
       setChannel(null);
     };
-  }, [chatClient, productId, product, setChannel, updateProduct]);
+  }, [chatClient, productId, product, setChannel, updateProduct, currentUser]);
 
   useEffect(() => {
     if (!chatClient) return;
@@ -301,7 +188,6 @@ export function useAuctionLogic(
     return () => chatClient.off("connection.changed", handleConnectionChange);
   }, [chatClient, setConnectionStatus]);
 
-  // Time left calculation - only recalculate if timeLeft is empty or we need to refresh
   useEffect(() => {
     if (!product) return;
 
@@ -336,12 +222,17 @@ export function useAuctionLogic(
   }, [product, setTimeLeft, timeLeft]);
 
   useEffect(() => {
-    if (connectionStatus === "disconnected" && chatClient && token) {
+    if (
+      connectionStatus === "disconnected" &&
+      chatClient &&
+      token &&
+      currentUser
+    ) {
       setChannel(null);
 
       const reconnectTimer: NodeJS.Timeout = setTimeout(() => {
         chatClient
-          .connectUser(userData, token)
+          .connectUser(currentUser, token)
           .then(() => {
             if (productId && product) {
               const productChannel: Channel = chatClient.channel(
@@ -363,7 +254,15 @@ export function useAuctionLogic(
       }, 5000);
       return () => clearTimeout(reconnectTimer);
     }
-  }, [connectionStatus, chatClient, token, productId, product, setChannel]);
+  }, [
+    connectionStatus,
+    chatClient,
+    token,
+    productId,
+    product,
+    setChannel,
+    currentUser,
+  ]);
 
   const handleBid = async (): Promise<void> => {
     if (!product) return;
