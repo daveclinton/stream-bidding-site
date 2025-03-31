@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Channel } from "stream-chat";
 
 export interface Bid {
   id: string;
@@ -23,61 +21,30 @@ export interface Product {
   minimumIncrement?: number;
 }
 
-export type StreamUser = {
+export interface StreamUser {
   id: string;
   name: string;
   avatar?: string;
-  [key: string]: any;
-};
-
-export const dummyUsers: StreamUser[] = [
-  {
-    id: "user-42",
-    name: "Jane Smith",
-    avatar: "https://i.pravatar.cc/150?u=jane",
-  },
-  {
-    id: "user-123",
-    name: "John Doe",
-    avatar: "https://i.pravatar.cc/150?u=john",
-  },
-  {
-    id: "user-456",
-    name: "Alice Johnson",
-    avatar: "https://i.pravatar.cc/150?u=alice",
-  },
-];
+}
 
 interface AuctionState {
   products: Product[];
   bidInput: string;
-  channel: Channel | null;
-  token: string | null;
-  isLoading: boolean;
   isBidding: boolean;
   showConfirm: boolean;
-  connectionStatus: "connected" | "disconnected" | "connecting";
   timeLeft: string;
   currentUser: StreamUser | null;
   setProducts: (products: Product[]) => void;
   updateProduct: (productId: string, updates: Partial<Product>) => void;
   setBidInput: (bidInput: string) => void;
-  setChannel: (channel: Channel | null) => void;
-  setToken: (token: string | null) => void;
-  setIsLoading: (isLoading: boolean) => void;
   setIsBidding: (isBidding: boolean) => void;
   setShowConfirm: (showConfirm: boolean) => void;
-  setConnectionStatus: (
-    status: "connected" | "disconnected" | "connecting"
-  ) => void;
   setTimeLeft: (timeLeft: string) => void;
   setCurrentUser: (user: StreamUser | null) => void;
 }
 
-const dateReviver = (key: string, value: any): any => {
-  if (key === "endTime" || key === "timestamp") {
-    return new Date(value);
-  }
+const dateReviver = (key: string, value: Date) => {
+  if (key === "endTime" || key === "timestamp") return new Date(value);
   return value;
 };
 
@@ -86,12 +53,8 @@ export const useAuctionStore = create<AuctionState>()(
     (set) => ({
       products: [],
       bidInput: "",
-      channel: null,
-      token: null,
-      isLoading: true,
       isBidding: false,
       showConfirm: false,
-      connectionStatus: "connecting",
       timeLeft: "",
       currentUser: null,
       setProducts: (products) => set({ products }),
@@ -102,21 +65,15 @@ export const useAuctionStore = create<AuctionState>()(
           ),
         })),
       setBidInput: (bidInput) => set({ bidInput }),
-      setChannel: (channel) => set({ channel }),
-      setToken: (token) => set({ token }),
-      setIsLoading: (isLoading) => set({ isLoading }),
       setIsBidding: (isBidding) => set({ isBidding }),
       setShowConfirm: (showConfirm) => set({ showConfirm }),
-      setConnectionStatus: (status) => set({ connectionStatus: status }),
       setTimeLeft: (timeLeft) => set({ timeLeft }),
-      setCurrentUser: (user) =>
-        set({ currentUser: user, token: null, channel: null }),
+      setCurrentUser: (user) => set({ currentUser: user }),
     }),
     {
       name: "auction-storage",
       partialize: (state) => ({
         products: state.products,
-        token: state.token,
         bidInput: state.bidInput,
         timeLeft: state.timeLeft,
         currentUser: state.currentUser,
@@ -127,12 +84,9 @@ export const useAuctionStore = create<AuctionState>()(
           if (!str) return null;
           return JSON.parse(str, dateReviver);
         },
-        setItem: (name, value) => {
-          localStorage.setItem(name, JSON.stringify(value));
-        },
-        removeItem: (name) => {
-          localStorage.removeItem(name);
-        },
+        setItem: (name, value) =>
+          localStorage.setItem(name, JSON.stringify(value)),
+        removeItem: (name) => localStorage.removeItem(name),
       },
     }
   )

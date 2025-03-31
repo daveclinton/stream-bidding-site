@@ -26,21 +26,28 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-
 import { useParams } from "next/navigation";
 import { products as initialProducts } from "@/lib/data";
-import { useAuctionLogic, apiKey } from "@/lib/actionUtils";
 import { Bid, useAuctionStore } from "@/store/auctionStore";
+import { useAuctionLogic } from "@/lib/useActionLogic";
+
+declare global {
+  interface Window {
+    __INITIAL_PRODUCTS__: any;
+  }
+}
+
+const apiKey = process.env.NEXT_PUBLIC_STREAM_KEY || "";
 
 export default function ProductDetail(): JSX.Element {
   const { id } = useParams();
   const productId = Array.isArray(id) ? id[0] : id;
-  const { products, setProducts } = useAuctionStore();
+  const { products, setProducts, currentUser } = useAuctionStore();
 
   useEffect(() => {
     if (products.length === 0) {
       const serverProducts =
-        typeof window !== "undefined" && (window as any).__INITIAL_PRODUCTS__;
+        typeof window !== "undefined" && window.__INITIAL_PRODUCTS__;
       setProducts(serverProducts || initialProducts);
     }
   }, [products, setProducts]);
@@ -60,14 +67,46 @@ export default function ProductDetail(): JSX.Element {
     MINIMUM_INCREMENT,
     handleBid,
     confirmBid,
+    initializeChannel,
   } = useAuctionLogic(productId);
 
-  if (!product) {
-    return <div>Product not found</div>;
+  // Initialize the channel when product and chatClient are ready
+  useEffect(() => {
+    if (!productId || !product || !chatClient || !currentUser || isLoading)
+      return;
+
+    initializeChannel(productId, product.name);
+  }, [
+    productId,
+    product,
+    chatClient,
+    currentUser,
+    isLoading,
+    initializeChannel,
+  ]);
+
+  if (!currentUser) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p>Please log in to participate in the auction.</p>
+      </div>
+    );
   }
 
   if (!apiKey) {
-    return <div>Error: Stream API key is not configured.</div>;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p>Error: Stream API key is not configured.</p>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p>Product not found</p>
+      </div>
+    );
   }
 
   if (isLoading || !chatClient) {
