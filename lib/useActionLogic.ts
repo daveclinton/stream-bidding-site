@@ -7,7 +7,6 @@ import { Product, useAuctionStore } from "../store/auctionStore";
 import { useAuctionChannel } from "@/store/useAuctionChannel";
 import { Channel, StreamChat } from "stream-chat";
 
-// Updated interface to include all properties used in ProductDetail
 interface AuctionLogicReturn {
   product: Product;
   bidInput: string;
@@ -20,9 +19,9 @@ interface AuctionLogicReturn {
   MINIMUM_INCREMENT: number;
   handleBid: () => Promise<void>;
   confirmBid: () => Promise<void>;
-  channel: Channel | null; // From useAuctionChannel
-  chatClient: StreamChat | null; // From useAuctionChannel
-  isLoading: boolean; // From useAuctionChannel
+  channel: Channel | null;
+  chatClient: StreamChat | null;
+  isLoading: boolean;
   connectionStatus: "connected" | "disconnected" | "connecting"; // From useAuctionChannel
   initializeChannel: (productId: string, productName: string) => Promise<void>; // From useAuctionChannel
 }
@@ -44,7 +43,6 @@ export function useAuctionLogic(
     setTimeLeft,
   } = useAuctionStore();
 
-  // Find the product, throw error if not found to ensure type safety
   const product =
     products.find((p) => p.id === productId) ??
     ((): never => {
@@ -76,7 +74,6 @@ export function useAuctionLogic(
     }
   };
 
-  // Get all properties from useAuctionChannel
   const {
     channel,
     chatClient,
@@ -85,13 +82,11 @@ export function useAuctionLogic(
     initializeChannel,
   } = useAuctionChannel(currentUser, handleMessageNew);
 
-  // Initialize channel when dependencies are ready
   useEffect(() => {
     if (!productId || !product || isLoading || !currentUser) return;
     initializeChannel(productId, product.name);
   }, [productId, product, isLoading, initializeChannel, currentUser]);
 
-  // Calculate and update time left
   useEffect(() => {
     if (!product) return;
 
