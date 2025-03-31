@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* store/auctionStore.ts */
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { Channel } from "stream-chat";

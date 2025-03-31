@@ -1,4 +1,3 @@
-// pages/product/[id].tsx
 import { products } from "@/lib/data";
 import ProductDetail from "@/components/product-detail";
 import Script from "next/script";
