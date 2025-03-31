@@ -74,19 +74,18 @@ export default function ProductDetail({ initialProduct }: ProductDetailProps) {
   const MINIMUM_INCREMENT = initialProduct.minimumIncrement || 10;
   const apiKey = process.env.NEXT_PUBLIC_STREAM_KEY || "";
 
-  // Creative token provider that updates dynamically
   const tokenProvider = useCallback(() => {
     if (token) {
       return Promise.resolve(token);
     }
-    // Return a promise that resolves when the token is available
+
     return new Promise<string>((resolve) => {
       const checkToken = setInterval(() => {
         if (token) {
           clearInterval(checkToken);
           resolve(token);
         }
-      }, 100); // Poll every 100ms until token is available
+      }, 100);
     });
   }, [token]);
 
@@ -96,7 +95,6 @@ export default function ProductDetail({ initialProduct }: ProductDetailProps) {
     tokenOrProvider: tokenProvider,
   });
 
-  // Fetch token on mount
   useEffect(() => {
     let mounted = true;
 
@@ -194,7 +192,6 @@ export default function ProductDetail({ initialProduct }: ProductDetailProps) {
     };
   }, [chatClient, product.id, product.name, product.currentBid]);
 
-  // Handle connection status
   useEffect(() => {
     if (!chatClient) return;
 

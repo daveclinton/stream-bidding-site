@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StreamChat } from "stream-chat";
 
-// Keep these as server-side environment variables
 const api_key = process.env.NEXT_PUBLIC_STREAM_KEY;
 const api_secret = process.env.NEXT_PUBLIC_STREAM_API_SECRET;
 
