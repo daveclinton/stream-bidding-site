@@ -1,6 +1,6 @@
 import { products } from "@/lib/data";
 import ProductDetail from "@/components/product-detail";
-import Script from "next/script";
+import BackButton from "@/components/back-button";
 
 export function generateStaticParams() {
   return products.map((product) => ({
@@ -8,13 +8,16 @@ export function generateStaticParams() {
   }));
 }
 
-export default async function ProductPage() {
+export default async function ProductPage({
+  params,
+}: {
+  params: { id: number };
+}) {
+  const { id } = await params;
   return (
-    <>
-      <Script id="initial-products" strategy="beforeInteractive">
-        {`window.__INITIAL_PRODUCTS__ = ${JSON.stringify(products)};`}
-      </Script>
-      <ProductDetail />
-    </>
+    <div className="container mx-auto px-4 py-8">
+      <BackButton />
+      <ProductDetail id={id} />
+    </div>
   );
 }

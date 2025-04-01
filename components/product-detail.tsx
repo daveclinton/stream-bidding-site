@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { JSX, useEffect } from "react";
+import { JSX } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -26,31 +26,15 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
-import { useParams } from "next/navigation";
-import { products as initialProducts } from "@/lib/data";
+
 import { Bid, useAuctionStore } from "@/store/auctionStore";
 import { useAuctionLogic } from "@/lib/useActionLogic";
 
-declare global {
-  interface Window {
-    __INITIAL_PRODUCTS__: any;
-  }
-}
-
 const apiKey = process.env.NEXT_PUBLIC_STREAM_KEY || "";
 
-export default function ProductDetail(): JSX.Element {
-  const { id } = useParams();
+export default function ProductDetail({ id }: { id: number }): JSX.Element {
   const productId = Array.isArray(id) ? id[0] : id;
-  const { products, setProducts, currentUser } = useAuctionStore();
-
-  useEffect(() => {
-    if (products.length === 0) {
-      const serverProducts =
-        typeof window !== "undefined" && window.__INITIAL_PRODUCTS__;
-      setProducts(serverProducts || initialProducts);
-    }
-  }, [products, setProducts]);
+  const { currentUser } = useAuctionStore();
 
   const {
     product,
@@ -67,23 +51,7 @@ export default function ProductDetail(): JSX.Element {
     MINIMUM_INCREMENT,
     handleBid,
     confirmBid,
-    initializeChannel,
   } = useAuctionLogic(productId);
-
-  // Initialize the channel when product and chatClient are ready
-  useEffect(() => {
-    if (!productId || !product || !chatClient || !currentUser || isLoading)
-      return;
-
-    initializeChannel(productId, product.name);
-  }, [
-    productId,
-    product,
-    chatClient,
-    currentUser,
-    isLoading,
-    initializeChannel,
-  ]);
 
   if (!currentUser) {
     return (
@@ -104,12 +72,12 @@ export default function ProductDetail(): JSX.Element {
   if (!product) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <p>Product not found</p>
+        <p>Loading product...</p>
       </div>
     );
   }
 
-  if (isLoading || !chatClient) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -170,9 +138,13 @@ export default function ProductDetail(): JSX.Element {
               onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                 setBidInput(e.target.value)
               }
-              placeholder={`Enter bid amount (min. $${(
-                product.currentBid + MINIMUM_INCREMENT
-              ).toLocaleString()})`}
+              placeholder={
+                MINIMUM_INCREMENT
+                  ? `Enter bid amount (min. $${(
+                      product.currentBid + MINIMUM_INCREMENT
+                    ).toLocaleString()})`
+                  : "Enter bid amount"
+              }
               className="flex-1"
               disabled={isBidding}
             />
@@ -180,39 +152,43 @@ export default function ProductDetail(): JSX.Element {
               {isBidding ? "Placing Bid..." : "Place Bid"}
             </Button>
           </div>
-          <div className="flex gap-2 mt-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setBidInput((product.currentBid + MINIMUM_INCREMENT).toString())
-              }
-            >
-              +${MINIMUM_INCREMENT}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setBidInput(
-                  (product.currentBid + MINIMUM_INCREMENT * 2).toString()
-                )
-              }
-            >
-              +${MINIMUM_INCREMENT * 2}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                setBidInput(
-                  (product.currentBid + MINIMUM_INCREMENT * 5).toString()
-                )
-              }
-            >
-              +${MINIMUM_INCREMENT * 5}
-            </Button>
-          </div>
+          {MINIMUM_INCREMENT && (
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setBidInput(
+                    (product.currentBid + MINIMUM_INCREMENT).toString()
+                  )
+                }
+              >
+                +${MINIMUM_INCREMENT}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setBidInput(
+                    (product.currentBid + MINIMUM_INCREMENT * 2).toString()
+                  )
+                }
+              >
+                +${MINIMUM_INCREMENT * 2}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  setBidInput(
+                    (product.currentBid + MINIMUM_INCREMENT * 5).toString()
+                  )
+                }
+              >
+                +${MINIMUM_INCREMENT * 5}
+              </Button>
+            </div>
+          )}
         </div>
 
         <Card className="p-4">
@@ -244,11 +220,7 @@ export default function ProductDetail(): JSX.Element {
             </Chat>
           ) : (
             <div className="flex items-center justify-center h-64">
-              <p>
-                {connectionStatus === "connecting"
-                  ? "Connecting to chat..."
-                  : "Reconnecting to chat..."}
-              </p>
+              <p>Place a bid to start the chat.</p>
             </div>
           )}
         </Card>

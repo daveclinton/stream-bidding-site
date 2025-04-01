@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { JSX } from "react";
 import { Product } from "@/store/auctionStore";
+import Link from "next/link";
 
 interface ProductCardProps {
   product: Product;
@@ -58,12 +59,15 @@ export default function ProductCard({
         </div>
       </CardContent>
       <CardFooter>
-        <Button
-          className="w-full"
-          onClick={() => router.push(`/product/${product.id}`)}
-        >
-          View Auction
-        </Button>
+        <Link className="w-full" href={`/product/${product.id}`} passHref>
+          {/* Using passHref to ensure the link works correctly */}
+          <Button
+            className="w-full"
+            onClick={() => router.push(`/product/${product.id}`)}
+          >
+            View Auction
+          </Button>
+        </Link>
       </CardFooter>
     </Card>
   );

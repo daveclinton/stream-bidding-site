@@ -2,6 +2,7 @@
 "use client";
 import Image from "next/image";
 import { useAuctionStore } from "../store/auctionStore";
+import Link from "next/link";
 
 export function Navbar() {
   const { currentUser } = useAuctionStore();
@@ -9,7 +10,9 @@ export function Navbar() {
   return (
     <nav className="bg-gray-800 text-white p-4">
       <div className="container mx-auto flex items-center justify-between">
-        <h1 className="text-xl font-bold">Auction App</h1>
+        <Link href="/" className="text-xl font-bold">
+          Auction App
+        </Link>
         {currentUser && (
           <div className="flex items-center gap-2">
             {currentUser.avatar && (

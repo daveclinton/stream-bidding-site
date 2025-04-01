@@ -1,17 +1,10 @@
 "use client";
-import { JSX, useEffect } from "react";
+import { JSX } from "react";
 import ProductCard from "@/components/product-card";
-import { products as initialProducts } from "@/lib/data";
 import { useAuctionStore } from "@/store/auctionStore";
 
 export default function Home(): JSX.Element {
-  const { products, setProducts } = useAuctionStore();
-
-  useEffect(() => {
-    if (products.length === 0) {
-      setProducts(initialProducts);
-    }
-  }, [products, setProducts]);
+  const { products } = useAuctionStore();
 
   return (
     <div className="container mx-auto px-4 py-8">
