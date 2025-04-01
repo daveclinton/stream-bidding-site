@@ -1,7 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { JSX } from "react";
+import type React from "react";
+
+import type { JSX } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -27,8 +29,9 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 
-import { Bid, useAuctionStore } from "@/store/auctionStore";
+import { type Bid, useAuctionStore } from "@/store/auctionStore";
 import { useAuctionLogic } from "@/lib/useActionLogic";
+import LoginPrompt from "@/components/login-prompt";
 
 const apiKey = process.env.NEXT_PUBLIC_STREAM_KEY || "";
 
@@ -266,6 +269,11 @@ export default function ProductDetail({ id }: { id: number }): JSX.Element {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <LoginPrompt
+        open={!currentUser}
+        onOpenChange={() => {}}
+        action="place a bid"
+      />
     </div>
   );
 }
