@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -60,7 +61,6 @@ export default function BiddingPage() {
   useEffect(() => {
     setUserId(`user-${Math.random().toString(36).substring(2, 7)}`);
     fetchProductData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [productId]);
 
   const fetchProductData = async () => {
