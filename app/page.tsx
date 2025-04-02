@@ -1,26 +1,10 @@
 import { Suspense } from "react";
-
-import type { Product } from "@/types/product";
 import ProductsList from "@/components/ProductListClient";
 import { ProductsPageSkeleton } from "@/components/ProductPageSkelton";
-
-async function getProducts(): Promise<Product[]> {
-  const response = await fetch(
-    `${process.env.NEXT_PUBLIC_API_URL || ""}/api/products`,
-    {
-      cache: "no-store",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch products");
-  }
-
-  return response.json();
-}
+import { getAllProducts } from "@/lib/products";
 
 export default async function Page() {
-  const products = await getProducts();
+  const products = await getAllProducts();
   return (
     <main className="container mx-auto py-12 px-4 max-w-7xl">
       <div className="space-y-8">
