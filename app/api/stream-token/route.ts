@@ -1,6 +1,6 @@
+import { PRODUCTS } from "@/lib/data";
 import { NextRequest, NextResponse } from "next/server";
 import { StreamChat } from "stream-chat";
-import { PRODUCTS } from "../products/route";
 
 export async function POST(req: NextRequest) {
   try {
