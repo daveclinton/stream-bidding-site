@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -6,9 +5,9 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   StreamChat,
-  Channel as StreamChannel,
-  DefaultGenerics,
-  Event,
+  type Channel as StreamChannel,
+  type DefaultGenerics,
+  type Event,
 } from "stream-chat";
 import {
   Chat,
@@ -19,7 +18,15 @@ import {
   MessageInput,
 } from "stream-chat-react";
 import "stream-chat-react/dist/css/v2/index.css";
-import { Product } from "@/types/product";
+import type { Product } from "@/types/product";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { ArrowLeft, Clock, Trophy, AlertCircle, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type BidMessage = {
   bidder: string;
@@ -260,7 +267,7 @@ export default function BiddingPage() {
           const match = text.match(/(\w+) placed a bid of \$(\d+\.?\d*)/);
           if (match) {
             const [, bidder, amount] = match;
-            return { bidder, amount: parseFloat(amount) };
+            return { bidder, amount: Number.parseFloat(amount) };
           }
           return null;
         })
@@ -294,7 +301,7 @@ export default function BiddingPage() {
           );
           if (match) {
             const [, bidder, amount] = match;
-            const bidValue = parseFloat(amount);
+            const bidValue = Number.parseFloat(amount);
 
             if (bidValue > currentBid) {
               setCurrentBid(bidValue);
@@ -323,7 +330,7 @@ export default function BiddingPage() {
       return;
     }
 
-    const bidValue = parseFloat(bidInput);
+    const bidValue = Number.parseFloat(bidInput);
 
     if (isNaN(bidValue)) {
       setError("Please enter a valid number.");
@@ -362,7 +369,7 @@ export default function BiddingPage() {
   if (isLoadingProduct) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
   }
@@ -371,134 +378,193 @@ export default function BiddingPage() {
     return (
       <div className="container mx-auto p-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Product Not Found</h1>
-        <p>
+        <p className="text-muted-foreground mb-6">
           The product you&apos;re looking for doesn&rsquo;t exist or has been
           removed.
         </p>
-        <Link
-          href="/"
-          className="text-blue-600 hover:underline mt-4 inline-block"
-        >
-          Back to All Auctions
-        </Link>
+        <Button asChild>
+          <Link href="/">Back to All Auctions</Link>
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen">
-      <div className="w-full md:w-1/3 p-6 bg-gray-50">
-        <Link
-          href="/"
-          className="text-blue-600 hover:underline mb-6 inline-block"
-        >
-          ← Back to All Auctions
-        </Link>
+    <div className="flex flex-col md:flex-row min-h-screen bg-background">
+      <div className="w-full md:w-1/3 p-6 border-r">
+        <Button variant="ghost" size="sm" className="mb-6" asChild>
+          <Link href="/">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to All Auctions
+          </Link>
+        </Button>
 
-        <h1 className="text-2xl font-bold mb-2">{product.name}</h1>
-        <p className="text-gray-600 mb-4">{product.description}</p>
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold">{product.name}</h1>
+            <p className="text-muted-foreground mt-1">{product.description}</p>
+          </div>
 
-        <div className="mb-6">
-          {isAuctionEnded ? (
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 p-3 rounded mb-4">
-              <h3 className="font-medium">Auction Ended</h3>
-              {winner && (
-                <p>
-                  Winner: {winner === userId ? "You" : winner} ($
-                  {currentBid.toFixed(2)})
-                </p>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center">
+                <Clock className="mr-2 h-5 w-5" />
+                Auction Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isAuctionEnded ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 text-yellow-800">
+                  <div className="font-medium flex items-center">
+                    <Trophy className="mr-2 h-4 w-4" />
+                    Auction Ended
+                  </div>
+                  {winner && (
+                    <p className="mt-1">
+                      Winner:{" "}
+                      <span className="font-medium">
+                        {winner === userId ? "You" : winner}
+                      </span>{" "}
+                      <span className="font-bold">
+                        (${currentBid.toFixed(2)})
+                      </span>
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-primary/10 rounded-md p-3 text-primary">
+                  <div className="font-medium flex items-center">
+                    <Clock className="mr-2 h-4 w-4" />
+                    Time Remaining
+                  </div>
+                  <p className="text-lg font-bold mt-1">{timeRemaining}</p>
+                </div>
+              )}
+
+              <div className="mt-4">
+                <div className="text-sm text-muted-foreground">Current bid</div>
+                <div className="text-2xl font-bold text-primary">
+                  ${currentBid.toFixed(2)}
+                </div>
+                {highestBidder && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Highest bidder:{" "}
+                    <span className="font-medium">
+                      {highestBidder === userId ? "You" : highestBidder}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {userId && (
+            <div className="text-sm text-muted-foreground">
+              Your ID: <Badge variant="outline">{userId}</Badge>
+            </div>
+          )}
+
+          <Separator />
+
+          {!client ? (
+            <Button
+              onClick={handleConnect}
+              disabled={isConnecting}
+              className="w-full"
+            >
+              {isConnecting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Connecting...
+                </>
+              ) : (
+                "Join Auction"
+              )}
+            </Button>
+          ) : !isAuctionEnded ? (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  value={bidInput}
+                  onChange={(e) => setBidInput(e.target.value)}
+                  placeholder={`Min bid: $${(currentBid + 1).toFixed(2)}`}
+                  className="flex-1"
+                  min={currentBid + 1}
+                  step="0.01"
+                />
+                <Button
+                  onClick={handleBid}
+                  disabled={isLoading || !bidInput}
+                  className="shrink-0"
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Placing...
+                    </>
+                  ) : (
+                    "Place Bid"
+                  )}
+                </Button>
+              </div>
+              {error && (
+                <Alert variant="destructive" className="py-2">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
               )}
             </div>
           ) : (
-            <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded mb-4">
-              <h3 className="font-medium">Time remaining</h3>
-              <p>{timeRemaining}</p>
-            </div>
+            <Card>
+              <CardContent className="pt-6 text-center">
+                <p className="text-muted-foreground">This auction has ended</p>
+                {winner === userId && (
+                  <div className="mt-2 flex items-center justify-center text-primary font-bold">
+                    <Trophy className="mr-2 h-5 w-5" />
+                    Congratulations! You won this auction.
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           )}
         </div>
-
-        {userId && (
-          <div className="mb-4">
-            <p className="text-sm text-gray-600">Your ID: {userId}</p>
-          </div>
-        )}
-
-        <div className="bg-white p-4 rounded shadow-sm mb-6">
-          <h2 className="text-lg font-semibold mb-2">Current Auction Status</h2>
-          <p className="text-xl font-bold text-green-600">
-            ${currentBid.toFixed(2)}
-          </p>
-          {highestBidder && (
-            <p className="text-sm text-gray-500">
-              Highest bidder: {highestBidder === userId ? "You" : highestBidder}
-            </p>
-          )}
-        </div>
-
-        {!client ? (
-          <button
-            onClick={handleConnect}
-            disabled={isConnecting}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition disabled:bg-blue-300"
-          >
-            {isConnecting ? "Connecting..." : "Join Auction"}
-          </button>
-        ) : !isAuctionEnded ? (
-          <div>
-            <div className="flex mb-2">
-              <input
-                type="number"
-                value={bidInput}
-                onChange={(e) => setBidInput(e.target.value)}
-                placeholder={`Min bid: $${(currentBid + 1).toFixed(2)}`}
-                className="flex-1 p-2 border rounded-l focus:outline-none focus:ring-2 focus:ring-blue-300"
-                min={currentBid + 1}
-                step="0.01"
-              />
-              <button
-                onClick={handleBid}
-                disabled={isLoading || !bidInput}
-                className="bg-green-600 text-white py-2 px-4 rounded-r hover:bg-green-700 transition disabled:bg-green-300"
-              >
-                {isLoading ? "Placing..." : "Place Bid"}
-              </button>
-            </div>
-            {error && <p className="text-red-500 text-sm mt-1">{error}</p>}
-          </div>
-        ) : (
-          <div className="text-center p-3 bg-gray-100 rounded">
-            <p className="text-gray-700">This auction has ended</p>
-            {winner === userId && (
-              <p className="mt-2 font-bold text-green-600">
-                Congratulations! You won this auction.
-              </p>
-            )}
-          </div>
-        )}
       </div>
 
       <div className="w-full md:w-2/3 h-screen">
         {client && channel ? (
-          <Chat client={client} theme="messaging light">
-            <Channel channel={channel}>
-              <Window>
-                <ChannelHeader />
-                <MessageList />
-                <MessageInput disabled={isAuctionEnded} />
-              </Window>
-            </Channel>
-          </Chat>
+          <div className="h-full">
+            <Chat client={client} theme="messaging light">
+              <Channel channel={channel}>
+                <Window>
+                  <ChannelHeader />
+                  <MessageList />
+                  <MessageInput disabled={isAuctionEnded} />
+                </Window>
+              </Channel>
+            </Chat>
+          </div>
         ) : (
-          <div className="flex justify-center items-center h-full bg-gray-100">
-            <div className="text-center p-8">
+          <div
+            className={cn(
+              "flex justify-center items-center h-full",
+              "bg-muted/30"
+            )}
+          >
+            <div className="text-center p-8 max-w-md">
               <h2 className="text-xl font-semibold mb-4">Live Auction Chat</h2>
-              <p className="text-gray-600 mb-6">
-                Join the auction to view the live bidding chat
+              <p className="text-muted-foreground mb-6">
+                Join the auction to view the live bidding chat and interact with
+                other bidders
               </p>
-              {isJoining && (
+              {isJoining ? (
                 <div className="flex justify-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
+              ) : (
+                <Button onClick={handleConnect} disabled={isConnecting}>
+                  Join Now
+                </Button>
               )}
             </div>
           </div>
