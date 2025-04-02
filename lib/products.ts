@@ -43,30 +43,3 @@ export async function getAllProducts(): Promise<Product[]> {
     return [];
   }
 }
-
-export async function updateProductBid(
-  productId: string,
-  currentBid: number,
-  highestBidder: string
-): Promise<boolean> {
-  try {
-    const res = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/api/products/${productId}`,
-      {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          currentBid,
-          highestBidder,
-        }),
-      }
-    );
-
-    return res.ok;
-  } catch (error) {
-    console.error("Error updating product bid:", error);
-    return false;
-  }
-}
