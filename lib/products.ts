@@ -1,5 +1,5 @@
-import { cache } from "react";
 import type { Product } from "@/types/product";
+import { cache } from "react";
 
 export const getProductById = cache(
   async (productId: string): Promise<Product | null> => {
