@@ -413,6 +413,8 @@ export default function BiddingPage() {
             handleBid={handleBid}
             error={error}
             winner={winner}
+            bidInput={bidInput}
+            setBidInput={setBidInput}
           />
         </div>
       </div>

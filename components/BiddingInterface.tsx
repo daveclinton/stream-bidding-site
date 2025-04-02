@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Loader2, AlertCircle, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +17,8 @@ type BiddingInterfaceProps = {
   handleBid: () => Promise<void>;
   error: string | null;
   winner: string | null;
+  bidInput: string; // Add bidInput from parent
+  setBidInput: (value: string) => void; // Add setter from parent
 };
 
 export default function BiddingInterface({
@@ -31,12 +32,21 @@ export default function BiddingInterface({
   handleBid,
   error,
   winner,
+  bidInput,
+  setBidInput,
 }: BiddingInterfaceProps) {
-  const [bidInput, setBidInput] = useState<string>("");
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow empty string or valid number with up to 2 decimal places
+    if (value === "" || /^\d*\.?\d{0,2}$/.test(value)) {
+      setBidInput(value);
+    }
+  };
 
   const onBid = async () => {
+    const bidAmount = parseFloat(bidInput);
+    if (isNaN(bidAmount) || bidAmount <= currentBid) return;
     await handleBid();
-    setBidInput("");
   };
 
   if (!client) {
@@ -80,7 +90,7 @@ export default function BiddingInterface({
         <Input
           type="number"
           value={bidInput}
-          onChange={(e) => setBidInput(e.target.value)}
+          onChange={handleInputChange}
           placeholder={`Min bid: $${(currentBid + 1).toFixed(2)}`}
           className="flex-1"
           min={currentBid + 1}
@@ -88,7 +98,9 @@ export default function BiddingInterface({
         />
         <Button
           onClick={onBid}
-          disabled={isLoading || !bidInput}
+          disabled={
+            isLoading || !bidInput || parseFloat(bidInput) <= currentBid
+          }
           className="shrink-0"
         >
           {isLoading ? (
