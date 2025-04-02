@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { StreamChat } from "stream-chat";
+import { PRODUCTS } from "../products/route";
 
 export async function POST(req: NextRequest) {
   try {
@@ -15,13 +16,21 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { userId } = body as { userId?: string };
+    const { userId, productId = "product-1" } = body as {
+      userId?: string;
+      productId?: string;
+    };
 
     if (!userId || typeof userId !== "string") {
       return NextResponse.json(
         { error: "Valid user ID is required" },
         { status: 400 }
       );
+    }
+
+    const product = PRODUCTS[productId];
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
     }
 
     const serverClient = StreamChat.getInstance(apiKey, apiSecret);
@@ -32,13 +41,17 @@ export async function POST(req: NextRequest) {
       role: "user",
     });
 
-    const channel = serverClient.channel("messaging", "product-1", {
-      name: "Bidding for Product 1",
+    const channelId = `auction-${productId}`;
+    const channel = serverClient.channel("messaging", channelId, {
+      name: `Bidding for ${product.name}`,
+      product: product,
+      auctionEnd: product.endTime.toISOString(),
       created_by_id: "system",
     });
 
     try {
       await channel.create();
+      console.log(`Channel ${channelId} created or already exists`);
     } catch (error) {
       console.log(
         "Channel creation error (likely exists):",
@@ -48,9 +61,7 @@ export async function POST(req: NextRequest) {
 
     await channel.addMembers([userId]);
 
-    // Create a token with explicit expiration timestamp instead of duration
-    // This ensures the expiration is based on server time, not client time
-    const expirationTime = Math.floor(Date.now() / 1000) + 604800; // Current time + 7 days in seconds
+    const expirationTime = Math.floor(Date.now() / 1000) + 604800;
     const token = serverClient.createToken(userId, expirationTime);
 
     console.log(
@@ -60,7 +71,10 @@ export async function POST(req: NextRequest) {
       new Date(expirationTime * 1000).toISOString()
     );
 
-    return NextResponse.json({ token });
+    return NextResponse.json({
+      token,
+      product,
+    });
   } catch (error) {
     const typedError = error as Error;
     console.error("Stream token error details:", {
