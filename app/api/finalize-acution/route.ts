@@ -28,18 +28,8 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
-
-    // In a real application, you would:
-    // 1. Update the product status in your database
-    // 2. Create an order or purchase record
-    // 3. Notify the winner via email
-    // 4. Process payment or set up payment collection
-
-    // For the demo, we'll just record the result in the channel
     const channelId = `auction-${productId}`;
     const channel = serverClient.channel("messaging", channelId);
-
-    // Send system message to the channel
     await channel.sendMessage({
       text: `🏆 Auction for product ${productId} has been finalized. ${winner} is the winner with a bid of $${amount.toFixed(
         2
@@ -49,8 +39,6 @@ export async function POST(req: NextRequest) {
       winner,
       final_amount: amount,
     });
-
-    // Update channel data to reflect auction status
     await channel.update({
       auction_status: "completed",
       winner,
